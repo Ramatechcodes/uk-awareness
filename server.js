@@ -13,7 +13,7 @@ const path = require("path");
 const Session = require("./models/Session");
 const Visitor = require("./models/Visitor");
 const Location = require("./models/Location");
-const Registration = require("./modelsration");
+const Registration = require("./models/Registration");
 
 const app = express();
 const server = http.createServer(app);
