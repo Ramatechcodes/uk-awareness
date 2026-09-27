@@ -1,4 +1,4 @@
-```js
+
 const mongoose = require("mongoose");
 
 const registrationSchema = new mongoose.Schema(
@@ -198,4 +198,4 @@ const registrationSchema = new mongoose.Schema(
 );
 
 module.exports = mongoose.model("Registration", registrationSchema);
-```
+
