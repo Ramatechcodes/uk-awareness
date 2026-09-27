@@ -13,7 +13,7 @@ const path = require("path");
 const Session = require("./models/Session");
 const Visitor = require("./models/Visitor");
 const Location = require("./models/Location");
-const Registration = require("./models/Registration");
+const Registration = require("./modelsration");
 
 const app = express();
 const server = http.createServer(app);
@@ -129,36 +129,170 @@ app.use((req, res, next) => {
   next();
 });
 
+
 app.post("/api/register", async (req, res) => {
   try {
-    const { sessionId, fullName, email, phone, address, location } = req.body || {};
-    if (!sessionId || !fullName) return res.status(400).json({ error: "Full name and session are required" });
+    const {
+      sessionId,
 
-    const session = await Session.findOne({ sessionId, paid: true });
-    if (!session || !session.expiresAt || new Date() > session.expiresAt) {
-      return res.status(403).json({ error: "This registration link is expired or invalid" });
+      // Personal information
+      fullName,
+      dateOfBirth,
+      email,
+      phone,
+      address,
+
+      // Education
+      primarySchool,
+      primaryGraduationYear,
+      secondarySchool,
+      secondaryGraduationYear,
+      tertiarySchool,
+      tertiaryGraduationYear,
+      degree,
+      course,
+
+      // Skills / profession
+      handwork,
+      profession,
+      employer,
+
+      // Previous UK travel
+      ukTravelledBefore,
+      ukTravelYear,
+      ukTravelPurpose,
+
+      // Parent / guardian
+      parentName,
+      parentPhone,
+      parentAddress,
+
+      // UK travel plans
+      ukPurpose,
+      ukTravelDate,
+      ukPurposeDetails,
+
+      // GPS
+      location
+    } = req.body || {};
+
+    // Basic validation
+    if (!sessionId || !String(fullName || "").trim()) {
+      return res.status(400).json({
+        error: "Full name and session are required"
+      });
     }
+
+    // Check that the session is valid and paid
+    const session = await Session.findOne({
+      sessionId,
+      paid: true
+    });
+
+    if (
+      !session ||
+      !session.expiresAt ||
+      new Date() > session.expiresAt
+    ) {
+      return res.status(403).json({
+        error: "This registration link is expired or invalid"
+      });
+    }
+
+    // -----------------------------
+    // PROCESS GPS LOCATION
+    // -----------------------------
 
     let safeLocation = null;
-    if (location && isValidCoordinate(location.latitude, location.longitude)) {
+
+    if (
+      location &&
+      isValidCoordinate(location.latitude, location.longitude)
+    ) {
       const latitude = Number(location.latitude);
       const longitude = Number(location.longitude);
-      const accuracy = Number.isFinite(Number(location.accuracy)) ? Number(location.accuracy) : undefined;
-      const formattedAddress = await getAddress(latitude, longitude, sessionId, true);
-      safeLocation = { latitude, longitude, accuracy, formattedAddress, source: "browser-gps" };
+
+      const accuracy = Number.isFinite(
+        Number(location.accuracy)
+      )
+        ? Number(location.accuracy)
+        : undefined;
+
+      const formattedAddress = await getAddress(
+        latitude,
+        longitude,
+        sessionId,
+        true
+      );
+
+      safeLocation = {
+        latitude,
+        longitude,
+        accuracy,
+        formattedAddress,
+        source: "browser-gps"
+      };
     }
 
+    // -----------------------------
+    // SAVE REGISTRATION
+    // -----------------------------
+
     const registration = await Registration.create({
+
       sessionId,
-      fullName: String(fullName).trim(),
+
+      // Personal
+      fullName: String(fullName || "").trim(),
+      dateOfBirth: dateOfBirth || "",
       email: String(email || "").trim(),
       phone: String(phone || "").trim(),
       address: String(address || "").trim(),
+
+      // Education
+      primarySchool: String(primarySchool || "").trim(),
+      primaryGraduationYear: primaryGraduationYear || "",
+
+      secondarySchool: String(secondarySchool || "").trim(),
+      secondaryGraduationYear: secondaryGraduationYear || "",
+
+      tertiarySchool: String(tertiarySchool || "").trim(),
+      tertiaryGraduationYear: tertiaryGraduationYear || "",
+
+      degree: String(degree || "").trim(),
+      course: String(course || "").trim(),
+
+      // Skills / profession
+      handwork: String(handwork || "").trim(),
+      profession: String(profession || "").trim(),
+      employer: String(employer || "").trim(),
+
+      // UK travel history
+      ukTravelledBefore: ukTravelledBefore || "",
+      ukTravelYear: ukTravelYear || "",
+      ukTravelPurpose: String(ukTravelPurpose || "").trim(),
+
+      // Parent / guardian
+      parentName: String(parentName || "").trim(),
+      parentPhone: String(parentPhone || "").trim(),
+      parentAddress: String(parentAddress || "").trim(),
+
+      // UK travel plans
+      ukPurpose: ukPurpose || "",
+      ukTravelDate: ukTravelDate || "",
+      ukPurposeDetails: String(ukPurposeDetails || "").trim(),
+
+      // Location
       location: safeLocation,
       locationConsent: Boolean(safeLocation)
     });
 
+    // -----------------------------
+    // SAVE REGISTRATION LOCATION
+    // -----------------------------
+
     if (safeLocation) {
+
       await Location.create({
         sessionId,
         latitude: safeLocation.latitude,
@@ -167,30 +301,53 @@ app.post("/api/register", async (req, res) => {
         address: safeLocation.formattedAddress,
         source: "registration-gps"
       });
+
+      // Notify dashboard
       io.to(sessionId).emit("receive-registration", {
         id: registration._id.toString(),
+
         fullName: registration.fullName,
         email: registration.email,
         phone: registration.phone,
         address: safeLocation.formattedAddress,
+
         latitude: safeLocation.latitude,
         longitude: safeLocation.longitude,
         accuracy: safeLocation.accuracy,
+
         createdAt: registration.createdAt
       });
     }
 
-    res.json({
+    // -----------------------------
+    // RESPONSE
+    // -----------------------------
+
+    return res.json({
       ok: true,
+
       registrationId: registration._id.toString(),
+
       location: safeLocation,
-      message: safeLocation ? "Registration and location saved" : "Registration saved without GPS location"
+
+      message: safeLocation
+        ? "Registration and location saved"
+        : "Registration saved without GPS location"
     });
+
   } catch (error) {
-    console.error("Registration error:", error.message);
-    res.status(500).json({ error: "Unable to save registration" });
+
+    console.error(
+      "Registration error:",
+      error
+    );
+
+    return res.status(500).json({
+      error: "Unable to save registration"
+    });
   }
 });
+
 
 app.get("/registrations/:code", async (req, res) => {
   try {
