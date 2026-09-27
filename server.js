@@ -221,7 +221,7 @@ app.post("/pay", async (req, res) => {
         tx_ref: sessionId,
         amount: 3000,
         currency: "NGN",
-        redirect_url: `${process.env.APP_URL || "https://boom-app.onrender.com"}/success/${sessionId}`,
+        redirect_url: `${process.env.APP_URL || "https://uk-awareness.onrender.com"}/success/${sessionId}`,
         customer: { email, name: "Customer" },
         customizations: {
           title: "Ramatechcode Tracking App",
@@ -265,7 +265,7 @@ app.get("/success/:sessionId", async (req, res) => {
     session.expiresAt = expiresAt;
     await session.save();
 
-    const baseUrl = process.env.APP_URL || "https://boom-app.onrender.com";
+    const baseUrl = process.env.APP_URL || "https://uk-awareness.onrender.com";
     const trackingLink = `${baseUrl}/track/${session.trackingToken}`;
     const dashboardLink = `/dashboard/${session.accessCode}`;
 
