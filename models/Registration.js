@@ -1,17 +1,17 @@
-
+```js
 const mongoose = require("mongoose");
 
-const RegistrationSchema = new mongoose.Schema(
+const registrationSchema = new mongoose.Schema(
   {
     sessionId: {
       type: String,
-      required: true
+      required: true,
+      index: true
     },
 
-    // -----------------------------
+    // =========================
     // PERSONAL INFORMATION
-    // -----------------------------
-
+    // =========================
     fullName: {
       type: String,
       required: true,
@@ -21,154 +21,170 @@ const RegistrationSchema = new mongoose.Schema(
 
     dateOfBirth: {
       type: String,
-      default: ""
+      trim: true
     },
 
     email: {
       type: String,
-      default: "",
-      trim: true
+      trim: true,
+      lowercase: true,
+      maxlength: 160
     },
 
     phone: {
       type: String,
-      default: "",
-      trim: true
+      trim: true,
+      maxlength: 40
     },
 
     address: {
       type: String,
-      default: "",
-      trim: true
+      trim: true,
+      maxlength: 500
     },
 
-    // -----------------------------
+    // =========================
     // EDUCATION
-    // -----------------------------
-
+    // =========================
     primarySchool: {
       type: String,
-      default: ""
+      trim: true,
+      maxlength: 200
     },
 
     primaryGraduationYear: {
       type: String,
-      default: ""
+      trim: true
     },
 
     secondarySchool: {
       type: String,
-      default: ""
+      trim: true,
+      maxlength: 200
     },
 
     secondaryGraduationYear: {
       type: String,
-      default: ""
+      trim: true
     },
 
     tertiarySchool: {
       type: String,
-      default: ""
+      trim: true,
+      maxlength: 250
     },
 
     tertiaryGraduationYear: {
       type: String,
-      default: ""
+      trim: true
     },
 
     degree: {
       type: String,
-      default: ""
+      trim: true,
+      maxlength: 150
     },
 
     course: {
       type: String,
-      default: ""
+      trim: true,
+      maxlength: 200
     },
 
-    // -----------------------------
-    // SKILLS / PROFESSION
-    // -----------------------------
-
+    // =========================
+    // SKILLS / WORK
+    // =========================
     handwork: {
       type: String,
-      default: ""
+      trim: true,
+      maxlength: 200
     },
 
     profession: {
       type: String,
-      default: ""
+      trim: true,
+      maxlength: 200
     },
 
     employer: {
       type: String,
-      default: ""
+      trim: true,
+      maxlength: 250
     },
 
-    // -----------------------------
-    // UK TRAVEL HISTORY
-    // -----------------------------
-
+    // =========================
+    // PREVIOUS UK TRAVEL
+    // =========================
     ukTravelledBefore: {
       type: String,
-      default: ""
+      trim: true
     },
 
     ukTravelYear: {
       type: String,
-      default: ""
+      trim: true
     },
 
     ukTravelPurpose: {
       type: String,
-      default: ""
+      trim: true,
+      maxlength: 1000
     },
 
-    // -----------------------------
+    // =========================
     // PARENT / GUARDIAN
-    // -----------------------------
-
+    // =========================
     parentName: {
       type: String,
-      default: ""
+      trim: true,
+      maxlength: 150
     },
 
     parentPhone: {
       type: String,
-      default: ""
+      trim: true,
+      maxlength: 40
     },
 
     parentAddress: {
       type: String,
-      default: ""
+      trim: true,
+      maxlength: 500
     },
 
-    // -----------------------------
-    // UK TRAVEL PLANS
-    // -----------------------------
-
+    // =========================
+    // UK TRAVEL PLAN
+    // =========================
     ukPurpose: {
       type: String,
-      default: ""
+      trim: true
     },
 
     ukTravelDate: {
       type: String,
-      default: ""
+      trim: true
     },
 
     ukPurposeDetails: {
       type: String,
-      default: ""
+      trim: true,
+      maxlength: 2000
     },
 
-    // -----------------------------
+    // =========================
     // LOCATION
-    // -----------------------------
-
+    // =========================
     location: {
-      type: Object,
-      default: null
+      latitude: Number,
+      longitude: Number,
+      accuracy: Number,
+      heading: Number,
+      speed: Number,
+      formattedAddress: String,
+      source: {
+        type: String,
+        default: "browser-gps"
+      }
     },
 
     locationConsent: {
@@ -176,14 +192,10 @@ const RegistrationSchema = new mongoose.Schema(
       default: false
     }
   },
-
   {
     timestamps: true
   }
 );
 
-module.exports = mongoose.model(
-  "Registration",
-  RegistrationSchema
-);
-
+module.exports = mongoose.model("Registration", registrationSchema);
+```
