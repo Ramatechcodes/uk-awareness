@@ -544,44 +544,310 @@ app.post("/pay", async (req, res) => {
 
 app.get("/success/:sessionId", async (req, res) => {
   try {
-    const expiresAt = new Date(Date.now() + SESSION_DURATION_MINUTES * 60 * 1000);
+    const sessionId = String(req.params.sessionId || "").trim();
 
-    let session = await Session.findOne({ sessionId: req.params.sessionId });
-    if (!session) return res.status(404).send("Session not found");
+    if (!sessionId) {
+      return res.status(400).send("Invalid payment session.");
+    }
+
+    const session = await Session.findOne({ sessionId });
+
+    if (!session) {
+      return res.status(404).send("Payment session not found.");
+    }
+
+    // IMPORTANT:
+    // Do NOT trust the redirect URL as proof of payment.
+    // Verify the transaction directly with Flutterwave.
+
+    const verifyResponse = await axios.get(
+      `https://api.flutterwave.com/v3/transactions/verify_by_reference?tx_ref=${encodeURIComponent(sessionId)}`,
+      {
+        headers: {
+          Authorization: `Bearer ${process.env.FLUTTERWAVE_SECRET}`,
+          "Content-Type": "application/json"
+        },
+        timeout: 15000
+      }
+    );
+
+    const transaction = verifyResponse.data?.data;
+
+    const paymentSuccessful =
+      verifyResponse.data?.status === "success" &&
+      transaction?.status === "successful" &&
+      transaction?.tx_ref === sessionId &&
+      Number(transaction?.amount) === 3000 &&
+      String(transaction?.currency || "").toUpperCase() === "NGN";
+
+    // ----------------------------------------------------
+    // PAYMENT FAILED / CANCELLED / NOT VERIFIED
+    // ----------------------------------------------------
+
+    if (!paymentSuccessful) {
+      console.log("❌ PAYMENT NOT VERIFIED:", {
+        sessionId,
+        flutterwaveStatus: verifyResponse.data?.status,
+        transactionStatus: transaction?.status,
+        tx_ref: transaction?.tx_ref,
+        amount: transaction?.amount,
+        currency: transaction?.currency
+      });
+
+      // VERY IMPORTANT:
+      // Never grant access here.
+      session.paid = false;
+      await session.save();
+
+      return res.status(402).send(`
+        <!doctype html>
+        <html>
+        <head>
+          <meta name="viewport" content="width=device-width,initial-scale=1">
+          <title>Payment Not Completed</title>
+          <style>
+            body{
+              font-family:Arial;
+              background:#0f172a;
+              color:#fff;
+              padding:25px;
+            }
+
+            .box{
+              max-width:650px;
+              margin:auto;
+              background:#1e293b;
+              padding:25px;
+              border-radius:15px;
+              text-align:center;
+            }
+
+            a{
+              display:inline-block;
+              padding:12px 16px;
+              margin-top:15px;
+              border-radius:8px;
+              background:#38bdf8;
+              color:#06111d;
+              text-decoration:none;
+              font-weight:bold;
+            }
+          </style>
+        </head>
+
+        <body>
+          <div class="box">
+            <h2>❌ Payment Not Completed</h2>
+
+            <p>
+              Your payment was not successfully verified.
+              No tracking access has been activated.
+            </p>
+
+            <p>
+              If you cancelled the payment or the payment failed,
+              please return to the payment page and try again.
+            </p>
+
+            <a href="/pay.html">Return to Payment</a>
+          </div>
+        </body>
+        </html>
+      `);
+    }
+
+    // ----------------------------------------------------
+    // PAYMENT SUCCESSFULLY VERIFIED
+    // ----------------------------------------------------
+
+    console.log("✅ PAYMENT VERIFIED:", sessionId);
+
+    const expiresAt = new Date(
+      Date.now() + SESSION_DURATION_MINUTES * 60 * 1000
+    );
 
     if (!session.trackingToken) {
       session.trackingToken = uuidv4().replace(/-/g, "");
     }
 
+    // ONLY HERE do we grant access
     session.paid = true;
     session.expiresAt = expiresAt;
+
     await session.save();
 
-    const baseUrl = process.env.APP_URL || "https://uk-awareness.onrender.com";
-    const trackingLink = `${baseUrl}/track/${session.trackingToken}`;
-    const dashboardLink = `/dashboard/${session.accessCode}`;
+    const baseUrl =
+      process.env.APP_URL ||
+      "https://uk-awareness.onrender.com";
 
-    res.send(`
+    const trackingLink =
+      `${baseUrl}/track/${session.trackingToken}`;
+
+    const dashboardLink =
+      `/dashboard/${session.accessCode}`;
+
+    return res.send(`
       <!doctype html>
-      <html><head><meta name="viewport" content="width=device-width,initial-scale=1"><title>Payment Successful</title>
-      <style>body{font-family:Arial;background:#0f172a;color:#fff;padding:25px}.box{max-width:650px;margin:auto;background:#1e293b;padding:25px;border-radius:15px}input{width:100%;box-sizing:border-box;padding:12px;margin:8px 0;border-radius:8px;border:0}button,a{display:inline-block;padding:12px 16px;margin:6px 4px 6px 0;border:0;border-radius:8px;background:#38bdf8;color:#06111d;text-decoration:none;font-weight:bold}</style></head>
-      <body><div class="box">
-      <h2>Payment Successful 🎉</h2>
-      <p>Your dashboard access code:</p><h1>${escapeHtml(session.accessCode)}</h1>
-      <p><b>Tracking link:</b></p>
-      <input readonly value="${escapeHtml(trackingLink)}" onclick="this.select()">
-      <p>Send this tracking link to the person who should share their location. Their browser will ask for GPS permission.</p>
-      <a href="${dashboardLink}">Open Dashboard</a>
-      <button onclick="navigator.clipboard.writeText(${JSON.stringify(trackingLink)}).then(()=>alert('Tracking link copied'))">Copy Tracking Link</button>
-      <script>localStorage.setItem("sessionId", ${JSON.stringify(session.sessionId)});</script>
-      </div></body></html>
+      <html>
+
+      <head>
+        <meta name="viewport"
+          content="width=device-width,initial-scale=1">
+
+        <title>Payment Successful</title>
+
+        <style>
+          body{
+            font-family:Arial;
+            background:#0f172a;
+            color:#fff;
+            padding:25px;
+          }
+
+          .box{
+            max-width:650px;
+            margin:auto;
+            background:#1e293b;
+            padding:25px;
+            border-radius:15px;
+          }
+
+          input{
+            width:100%;
+            box-sizing:border-box;
+            padding:12px;
+            margin:8px 0;
+            border-radius:8px;
+            border:0;
+          }
+
+          button,a{
+            display:inline-block;
+            padding:12px 16px;
+            margin:6px 4px 6px 0;
+            border:0;
+            border-radius:8px;
+            background:#38bdf8;
+            color:#06111d;
+            text-decoration:none;
+            font-weight:bold;
+            cursor:pointer;
+          }
+        </style>
+      </head>
+
+      <body>
+
+        <div class="box">
+
+          <h2>Payment Successful 🎉</h2>
+
+          <p>Your dashboard access code:</p>
+
+          <h1>${escapeHtml(session.accessCode)}</h1>
+
+          <p><b>Tracking link:</b></p>
+
+          <input
+            readonly
+            value="${escapeHtml(trackingLink)}"
+            onclick="this.select()"
+          >
+
+          <p>
+            Send this tracking link to the person who should
+            share their location. Their browser will ask for
+            GPS permission.
+          </p>
+
+          <a href="${dashboardLink}">
+            Open Dashboard
+          </a>
+
+          <button
+            onclick="navigator.clipboard.writeText(${JSON.stringify(trackingLink)})
+            .then(()=>alert('Tracking link copied'))"
+          >
+            Copy Tracking Link
+          </button>
+
+          <script>
+            localStorage.setItem(
+              "sessionId",
+              ${JSON.stringify(session.sessionId)}
+            );
+          </script>
+
+        </div>
+
+      </body>
+      </html>
     `);
+
   } catch (error) {
-    console.error("Success page error:", error.message);
-    res.status(500).send("Unable to complete the session.");
+
+    console.error(
+      "Payment verification error:",
+      error.response?.data || error.message
+    );
+
+    return res.status(402).send(`
+      <!doctype html>
+      <html>
+
+      <head>
+        <meta name="viewport"
+          content="width=device-width,initial-scale=1">
+
+        <title>Payment Verification</title>
+      </head>
+
+      <body style="
+        font-family:Arial;
+        background:#0f172a;
+        color:white;
+        padding:25px;
+      ">
+
+        <div style="
+          max-width:650px;
+          margin:auto;
+          background:#1e293b;
+          padding:25px;
+          border-radius:15px;
+        ">
+
+          <h2>⚠️ Payment Could Not Be Verified</h2>
+
+          <p>
+            We could not confirm your payment.
+            Your tracking access has NOT been activated.
+          </p>
+
+          <p>
+            Please return to the payment page and try again.
+          </p>
+
+          <a href="/pay.html"
+             style="
+               display:inline-block;
+               padding:12px 16px;
+               background:#38bdf8;
+               color:#06111d;
+               text-decoration:none;
+               border-radius:8px;
+               font-weight:bold;
+             ">
+            Return to Payment
+          </a>
+
+        </div>
+
+      </body>
+      </html>
+    `);
   }
 });
-
 app.get("/verify/:code", async (req, res) => {
   try {
     if (req.params.code === process.env.ADMIN_PIN) return res.json({ ok: true, master: true });
