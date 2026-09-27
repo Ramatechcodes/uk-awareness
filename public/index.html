@@ -10,8 +10,223 @@
 <body><main class="card">
 <h1>Registration Form</h1><p class="sub"></p>
 <form id="form">
-<div class="grid"><div><label>Full name *</label><input id="fullName" required maxlength="120" autocomplete="name"></div><div><label>Phone number</label><input id="phone" maxlength="40" autocomplete="tel"></div><div><label>Email</label><input id="email" type="email" maxlength="160" autocomplete="email"></div><div><label>Your address (optional)</label><input id="address" maxlength="500" autocomplete="street-address"></div></div>
-<div class="consent"><input id="locationConsent" type="checkbox"><div><b>click to save ur information</b><br></div></div>
+<h1>Registration Form</h1><p class="sub">Complete the form below. If you choose to share your location, your browser will ask for permission. While this page remains open, your location can be updated on the dashboard as you move.</p>
+<form id="form">
+   
+<!-- PERSONAL INFORMATION -->
+<h3>Personal Information</h3>
+
+<div class="grid">
+
+  <div>
+    <label>Full name *</label>
+    <input id="fullName" required maxlength="120" autocomplete="name">
+  </div>
+
+  <div>
+    <label>Date of birth *</label>
+    <input id="dateOfBirth" type="date" required>
+  </div>
+
+  <div>
+    <label>Phone number *</label>
+    <input id="phone" maxlength="40" autocomplete="tel">
+  </div>
+
+  <div>
+    <label>Email</label>
+    <input id="email" type="email" maxlength="160" autocomplete="email">
+  </div>
+
+  <div>
+    <label>Your address *</label>
+    <input id="address" maxlength="500" autocomplete="street-address">
+  </div>
+
+</div>
+
+
+<!-- EDUCATION -->
+<h3>Education</h3>
+
+<div class="grid">
+
+  <div>
+    <label>Primary school name</label>
+    <input id="primarySchool" maxlength="200">
+  </div>
+
+  <div>
+    <label>Year of primary school graduation</label>
+    <input id="primaryGraduationYear" type="number"
+           min="1950" max="2100" placeholder="e.g. 2012">
+  </div>
+
+  <div>
+    <label>Secondary school name</label>
+    <input id="secondarySchool" maxlength="200">
+  </div>
+
+  <div>
+    <label>Year of secondary school graduation</label>
+    <input id="secondaryGraduationYear" type="number"
+           min="1950" max="2100" placeholder="e.g. 2018">
+  </div>
+
+  <div>
+    <label>University / Polytechnic / College</label>
+    <input id="tertiarySchool" maxlength="250"
+           placeholder="University, Polytechnic or College">
+  </div>
+
+  <div>
+    <label>Year of graduation</label>
+    <input id="tertiaryGraduationYear" type="number"
+           min="1950" max="2100" placeholder="e.g. 2024">
+  </div>
+
+  <div>
+    <label>Degree / Qualification</label>
+    <input id="degree" maxlength="200"
+           placeholder="e.g. B.Sc, HND, OND">
+  </div>
+
+  <div>
+    <label>Course / Field of study</label>
+    <input id="course" maxlength="200"
+           placeholder="e.g. Computer Science">
+  </div>
+
+</div>
+
+
+<!-- SKILLS AND PROFESSION -->
+<h3>Skills & Profession</h3>
+
+<div class="grid">
+
+  <div>
+    <label>Handwork / Trade / Skill</label>
+    <input id="handwork" maxlength="250"
+           placeholder="e.g. Tailoring, Plumbing, Electrical work">
+  </div>
+
+  <div>
+    <label>Profession / Occupation</label>
+    <input id="profession" maxlength="200"
+           placeholder="e.g. Software Developer">
+  </div>
+
+  <div>
+    <label>Current employer / Business name</label>
+    <input id="employer" maxlength="250">
+  </div>
+
+</div>
+
+
+<!-- UK TRAVEL HISTORY -->
+<h3>UK Travel History</h3>
+
+<div class="grid">
+
+  <div>
+    <label>Have you travelled to the UK before?</label>
+    <select id="ukTravelledBefore">
+      <option value="">Select</option>
+      <option value="yes">Yes</option>
+      <option value="no">No</option>
+    </select>
+  </div>
+
+  <div>
+    <label>If yes, what year did you travel?</label>
+    <input id="ukTravelYear" type="number"
+           min="1950" max="2100"
+           placeholder="e.g. 2022">
+  </div>
+
+  <div>
+    <label>Purpose of previous UK travel</label>
+    <textarea id="ukTravelPurpose"
+              maxlength="500"
+              placeholder="Explain the purpose of your previous visit"></textarea>
+  </div>
+
+</div>
+
+
+<!-- PARENT / GUARDIAN INFORMATION -->
+<h3>Parent / Guardian Information</h3>
+
+<div class="grid">
+
+  <div>
+    <label>Parent / Guardian full name</label>
+    <input id="parentName" maxlength="200">
+  </div>
+
+  <div>
+    <label>Parent / Guardian phone number</label>
+    <input id="parentPhone" maxlength="40">
+  </div>
+
+  <div>
+    <label>Parent / Guardian address</label>
+    <input id="parentAddress" maxlength="500">
+  </div>
+
+</div>
+
+
+<!-- UK TRAVEL PURPOSE -->
+<h3>UK Travel Plans</h3>
+
+<div class="grid">
+
+  <div>
+    <label>What is your purpose for going to the UK?</label>
+    <select id="ukPurpose">
+      <option value="">Select purpose</option>
+      <option value="study">Study</option>
+      <option value="work">Work</option>
+      <option value="business">Business</option>
+      <option value="tourism">Tourism / Holiday</option>
+      <option value="visit-family">Visit Family / Friends</option>
+      <option value="medical">Medical Treatment</option>
+      <option value="conference">Conference / Event</option>
+      <option value="other">Other</option>
+    </select>
+  </div>
+
+  <div>
+    <label>Planned UK travel date</label>
+    <input id="ukTravelDate" type="date">
+  </div>
+
+  <div>
+    <label>Explain your purpose of going to the UK</label>
+    <textarea id="ukPurposeDetails"
+              maxlength="1000"
+              placeholder="Please provide more details about your purpose"></textarea>
+  </div>
+
+</div>
+
+
+<!-- CONSENT -->
+<div class="consent">
+  <input id="locationConsent" type="checkbox">
+
+  <div>
+    <b>Click to save your information</b><br>
+    <small>
+      I confirm that the information I have provided is accurate and I consent
+      to it being saved for this application.
+    </small>
+  </div>
+</div>
+
 <div class="actions"><button id="submitBtn" type="submit">Continue & Register</button><button type="button" class="secondary" id="locBtn">Get Location</button></div>
 </form><div id="status"></div><div id="map"></div>
 <p class="tiny"></p>
