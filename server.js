@@ -58,43 +58,178 @@ function escapeHtml(value) {
     .replace(/'/g, "&#039;");
 }
 
-async function getAddress(lat, lng, sessionId = null, force = false) {
-  if (!isValidCoordinate(lat, lng)) return "Invalid GPS coordinates";
-  const key = cachedAddressKey(lat, lng);
-  if (geocodeCache.has(key)) return geocodeCache.get(key);
 
+async function getAddress(lat, lng, sessionId = null, force = false) {
+  if (!isValidCoordinate(lat, lng)) {
+    return "Invalid GPS coordinates";
+  }
+
+  const key = cachedAddressKey(lat, lng);
+
+  if (geocodeCache.has(key)) {
+    return geocodeCache.get(key);
+  }
+
+  // Prevent repeated requests for nearly identical positions
   if (sessionId && !force) {
     const previous = lastGeocodeBySession.get(sessionId);
-    if (previous && Date.now() - previous.time < GEOCODE_MIN_INTERVAL_MS && distanceMeters(previous.lat, previous.lng, lat, lng) < GEOCODE_DISTANCE_METERS) {
+
+    if (
+      previous &&
+      Date.now() - previous.time < GEOCODE_MIN_INTERVAL_MS &&
+      distanceMeters(
+        previous.lat,
+        previous.lng,
+        lat,
+        lng
+      ) < GEOCODE_DISTANCE_METERS
+    ) {
       return previous.address || "Address lookup pending";
     }
   }
 
-  let address = "Address lookup unavailable — use the GPS coordinates on the map.";
+  let address = null;
+
+  // =====================================================
+  // 1. TRY GOOGLE REVERSE GEOCODING
+  // =====================================================
+
   if (API_KEY) {
     try {
-      const response = await axios.get("https://maps.googleapis.com/maps/api/geocode/json", {
-        params: { latlng: `${lat},${lng}`, key: API_KEY, language: "en" }, timeout: 8000
-      });
-      if (response.data?.results?.length) address = response.data.results[0].formatted_address;
-    } catch (error) { console.log("Google geocode failed:", error.message); }
+      console.log(
+        "🌍 Trying Google reverse geocoding:",
+        lat,
+        lng
+      );
+
+      const response = await axios.get(
+        "https://maps.googleapis.com/maps/api/geocode/json",
+        {
+          params: {
+            latlng: `${lat},${lng}`,
+            key: API_KEY,
+            language: "en"
+          },
+          timeout: 10000
+        }
+      );
+
+      console.log(
+        "Google geocoder status:",
+        response.data?.status
+      );
+
+      if (response.data?.results?.length) {
+        address = response.data.results[0].formatted_address;
+
+        console.log(
+          "✅ Google address:",
+          address
+        );
+      } else {
+        console.log(
+          "⚠️ Google returned no address:",
+          response.data?.status,
+          response.data?.error_message || ""
+        );
+      }
+
+    } catch (error) {
+      console.log(
+        "❌ Google geocode failed:",
+        error.response?.data || error.message
+      );
+    }
+  } else {
+    console.log(
+      "⚠️ GOOGLE_API_KEY is not configured"
+    );
   }
 
-  // Only use Nominatim when Google is not configured, and never on every GPS tick.
-  if (!API_KEY) {
+  // =====================================================
+  // 2. FALLBACK TO OPENSTREETMAP / NOMINATIM
+  // =====================================================
+
+  if (!address) {
     try {
-      const response = await axios.get("https://nominatim.openstreetmap.org/reverse", {
-        params: { lat, lon: lng, format: "jsonv2", addressdetails: 1, zoom: 18, "accept-language": "en" },
-        headers: { "User-Agent": "RamatechCode-LocationTracker/1.0 (contact: ramatechcode14@gmail.com)" }, timeout: 10000
-      });
-      if (response.data?.display_name) address = response.data.display_name;
-    } catch (error) { console.log("Nominatim geocode failed:", error.response?.status || error.message); }
+      console.log(
+        "🌍 Trying OpenStreetMap reverse geocoding:",
+        lat,
+        lng
+      );
+
+      const response = await axios.get(
+        "https://nominatim.openstreetmap.org/reverse",
+        {
+          params: {
+            lat,
+            lon: lng,
+            format: "jsonv2",
+            addressdetails: 1,
+            zoom: 18,
+            "accept-language": "en"
+          },
+
+          headers: {
+            "User-Agent":
+              "RamatechCode-LocationTracker/1.0 (contact: ramatechcode14@gmail.com)"
+          },
+
+          timeout: 15000
+        }
+      );
+
+      if (response.data?.display_name) {
+        address = response.data.display_name;
+
+        console.log(
+          "✅ OpenStreetMap address:",
+          address
+        );
+      } else {
+        console.log(
+          "⚠️ OpenStreetMap returned no address"
+        );
+      }
+
+    } catch (error) {
+      console.log(
+        "❌ OpenStreetMap geocode failed:",
+        error.response?.data || error.message
+      );
+    }
   }
+
+  // =====================================================
+  // 3. FINAL FALLBACK
+  // =====================================================
+
+  if (!address) {
+    address =
+      "Address lookup unavailable — use the GPS coordinates on the map.";
+  }
+
+  // Cache the result
   geocodeCache.set(key, address);
-  if (geocodeCache.size > 1000) geocodeCache.delete(geocodeCache.keys().next().value);
-  if (sessionId) lastGeocodeBySession.set(sessionId, {lat:Number(lat),lng:Number(lng),time:Date.now(),address});
+
+  if (geocodeCache.size > 1000) {
+    geocodeCache.delete(
+      geocodeCache.keys().next().value
+    );
+  }
+
+  if (sessionId) {
+    lastGeocodeBySession.set(sessionId, {
+      lat: Number(lat),
+      lng: Number(lng),
+      time: Date.now(),
+      address
+    });
+  }
+
   return address;
 }
+
 
 async function getClientIp(req) {
   let ip = req.headers["x-forwarded-for"] || req.ip || "";
